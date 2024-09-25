@@ -29,5 +29,5 @@ func (m *cliModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m cliModel) View() string {
-	return ""
+	return "\nPress q to quit\n"
 }
