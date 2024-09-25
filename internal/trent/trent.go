@@ -10,12 +10,12 @@ type Trent struct {
 }
 
 func NewTrent() *Trent {
-	cfg, err := NewConfig()
+	cfg, err := newConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	clients := NewClients(cfg.ClientIDs, cfg.ClientPublicKeys)
+	clients := newClients(cfg.ClientIDs, cfg.ClientPublicKeys)
 
 	return &Trent{
 		cfg:     cfg,

@@ -12,14 +12,14 @@ type Agent struct {
 }
 
 func NewAgent() *Agent {
-	cfg, err := NewConfig()
+	cfg, err := newConfig()
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	return &Agent{
 		cfg:   cfg,
-		model: NewModel(),
+		model: newModel(),
 	}
 }
 

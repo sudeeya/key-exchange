@@ -9,7 +9,7 @@ var _ tea.Model = (*cliModel)(nil)
 type cliModel struct {
 }
 
-func NewModel() *cliModel {
+func newModel() *cliModel {
 	return &cliModel{}
 }
 

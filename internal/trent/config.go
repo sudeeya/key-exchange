@@ -13,7 +13,7 @@ type config struct {
 	ClientPublicKeys []string `env:"CLIENT_PUBLIC_KEYS,required"`
 }
 
-func NewConfig() (*config, error) {
+func newConfig() (*config, error) {
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		return nil, err

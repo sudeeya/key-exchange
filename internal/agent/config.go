@@ -15,7 +15,7 @@ type config struct {
 	AgentAddrs []string `env:"AGENT_ADDRS,required"`
 }
 
-func NewConfig() (*config, error) {
+func newConfig() (*config, error) {
 	var cfg config
 	if err := env.Parse(&cfg); err != nil {
 		return nil, err
