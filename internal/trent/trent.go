@@ -5,7 +5,8 @@ import (
 )
 
 type Trent struct {
-	cfg *config
+	cfg     *config
+	clients map[string]client
 }
 
 func NewTrent() *Trent {
@@ -14,8 +15,11 @@ func NewTrent() *Trent {
 		log.Fatal(err)
 	}
 
+	clients := NewClients(cfg.ClientIDs, cfg.ClientPublicKeys)
+
 	return &Trent{
-		cfg: cfg,
+		cfg:     cfg,
+		clients: clients,
 	}
 }
 
