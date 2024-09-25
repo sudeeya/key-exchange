@@ -1,13 +1,24 @@
 package agent
 
-import tea "github.com/charmbracelet/bubbletea"
+import (
+	"log"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 type Agent struct {
+	cfg   *config
 	model *cliModel
 }
 
 func NewAgent() *Agent {
+	cfg, err := NewConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return &Agent{
+		cfg:   cfg,
 		model: NewModel(),
 	}
 }
