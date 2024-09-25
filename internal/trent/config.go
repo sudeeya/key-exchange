@@ -1,8 +1,11 @@
 package trent
 
-import "github.com/caarlos0/env"
+import (
+	"github.com/caarlos0/env"
+)
 
 type config struct {
+	Addr       string `env:"ADDR,required"`
 	PublicKey  string `env:"PUBLIC_KEY,required"`
 	PrivateKey string `env:"PRIVATE_KEY,required"`
 
