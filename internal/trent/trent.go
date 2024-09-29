@@ -1,12 +1,21 @@
 package trent
 
 import (
+	"crypto/rsa"
 	"log"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/sudeeya/key-exchange/internal/pkg/pem"
+	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 )
 
 type Trent struct {
-	cfg     *config
-	clients map[string]client
+	cfg         *config
+	clientsList clients
+	mux         *chi.Mux
+	rng         *rng.RNG
+	privateKey  *rsa.PrivateKey
+	publicKey   *rsa.PublicKey
 }
 
 func NewTrent() *Trent {
@@ -15,13 +24,39 @@ func NewTrent() *Trent {
 		log.Fatal(err)
 	}
 
-	clients := newClients(cfg.ClientIDs, cfg.ClientPublicKeys)
+	privateKey, err := pem.ExtractRSAPrivateKey(cfg.PrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	publicKey, err := pem.ExtractRSAPublicKey(cfg.PublicKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	clientsList, err := newClients(cfg.ClientIDs, cfg.ClientPublicKeys)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mux := chi.NewRouter()
+
+	rng := rng.NewRNG()
 
 	return &Trent{
-		cfg:     cfg,
-		clients: clients,
+		cfg:         cfg,
+		clientsList: clientsList,
+		mux:         mux,
+		rng:         rng,
+		privateKey:  privateKey,
+		publicKey:   publicKey,
 	}
 }
 
-func (a Trent) Run() {
+func (t Trent) Run() {
+	t.addRoutes()
+}
+
+func (t *Trent) addRoutes() {
+	t.mux.Post("/initiate/", newInitiateHandler(t))
+	t.mux.Post("/confirm/", newConfirmHandler(t))
 }

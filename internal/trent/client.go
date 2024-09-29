@@ -1,13 +1,26 @@
 package trent
 
+import (
+	"crypto/rsa"
+
+	"github.com/sudeeya/key-exchange/internal/pkg/pem"
+)
+
 type client struct {
-	PublicKey []byte
+	PublicKey *rsa.PublicKey
 }
 
-func newClients(ids, keys []string) map[string]client {
-	clients := make(map[string]client, len(ids))
+type clients map[string]client
+
+func newClients(ids, keys []string) (clients, error) {
+	clientsList := make(clients, len(ids))
 	for i, id := range ids {
-		clients[id] = client{PublicKey: []byte(keys[i])}
+		publicKey, err := pem.ExtractRSAPublicKey(keys[i])
+		if err != nil {
+			return nil, err
+		}
+		clientsList[id] = client{PublicKey: publicKey}
 	}
-	return clients
+
+	return clientsList, nil
 }
