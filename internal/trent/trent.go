@@ -3,6 +3,7 @@ package trent
 import (
 	"crypto/rsa"
 	"log"
+	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
@@ -54,6 +55,10 @@ func NewTrent() *Trent {
 
 func (t Trent) Run() {
 	t.addRoutes()
+
+	if err := http.ListenAndServe(t.cfg.Addr, t.mux); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (t *Trent) addRoutes() {

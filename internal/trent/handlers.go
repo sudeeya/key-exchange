@@ -1,6 +1,7 @@
 package trent
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -39,7 +40,7 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 		}
 		infoJSONHash := hash.Sum(nil)
 
-		signature, err := t.privateKey.Sign(rand.Reader, infoJSONHash, nil)
+		signature, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoJSONHash)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -87,7 +88,7 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 		}
 		infoJSONHash := hash.Sum(nil)
 
-		signature, err := t.privateKey.Sign(rand.Reader, infoJSONHash, nil)
+		signature, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoJSONHash)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -124,7 +125,7 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 		}
 		infoToEncryptJSONHash := hash.Sum(nil)
 
-		signatureToEncrypt, err := t.privateKey.Sign(rand.Reader, infoToEncryptJSONHash, nil)
+		signatureToEncrypt, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoToEncryptJSONHash)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
