@@ -14,14 +14,18 @@ const (
 	PublicKeyBlockType  = "RSA PUBLIC KEY"
 )
 
-func SaveRSAPrivateKey(key *rsa.PrivateKey, file string) error {
+func EncodeRSAPrivateKey(key *rsa.PrivateKey) []byte {
 	var privateKeyPEM bytes.Buffer
 	pem.Encode(&privateKeyPEM, &pem.Block{
 		Type:  PrivateKeyBlockType,
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
 
-	if err := os.WriteFile(file, privateKeyPEM.Bytes(), 0666); err != nil {
+	return privateKeyPEM.Bytes()
+}
+
+func SaveRSAPrivateKey(key *rsa.PrivateKey, file string) error {
+	if err := os.WriteFile(file, EncodeRSAPrivateKey(key), 0666); err != nil {
 		return err
 	}
 
@@ -47,14 +51,18 @@ func ExtractRSAPrivateKey(file string) (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
-func SaveRSAPublicKey(key *rsa.PublicKey, file string) error {
+func EncodeRSAPublicKey(key *rsa.PublicKey) []byte {
 	var publicKeyPEM bytes.Buffer
 	pem.Encode(&publicKeyPEM, &pem.Block{
 		Type:  PublicKeyBlockType,
 		Bytes: x509.MarshalPKCS1PublicKey(key),
 	})
 
-	if err := os.WriteFile(file, publicKeyPEM.Bytes(), 0666); err != nil {
+	return publicKeyPEM.Bytes()
+}
+
+func SaveRSAPublicKey(key *rsa.PublicKey, file string) error {
+	if err := os.WriteFile(file, EncodeRSAPublicKey(key), 0666); err != nil {
 		return err
 	}
 
