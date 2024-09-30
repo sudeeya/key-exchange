@@ -24,9 +24,9 @@ tasks:
   alice-run:
     desc: Run Alice.
     cmds:
-      - go run cmd/alice/main.go -e env/alice.env
+      - go run cmd/agent/main.go -e env/alice.env
 
   bob-run:
     desc: Run Bob.
     cmds:
-      - go run cmd/bob/main.go -e env/bob.env
+      - go run cmd/agent/main.go -e env/bob.env
