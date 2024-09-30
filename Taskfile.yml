@@ -12,9 +12,15 @@ tasks:
   keygen-demo:
     desc: Generate RSA key pairs for Trent, Alice and Bob.
     cmds:
-      - go run cmd/keygen/main.go -private keys/alice/private.pem -public keys/alice/public.pem
-      - go run cmd/keygen/main.go -private keys/bob/private.pem -public keys/bob/public.pem
-      - go run cmd/keygen/main.go -private keys/trent/private.pem -public keys/trent/public.pem
+      - task: keygen 
+        vars: 
+          CLI_ARGS: -- -private keys/alice/private.pem -public keys/alice/public.pem
+      - task: keygen 
+        vars: 
+          CLI_ARGS: -- -private keys/bob/private.pem -public keys/bob/public.pem
+      - task: keygen 
+        vars: 
+          CLI_ARGS: -- -private keys/trent/private.pem -public keys/trent/public.pem
 
   trent-run:
     desc: Run Trent.
