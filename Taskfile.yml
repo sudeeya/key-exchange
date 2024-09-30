@@ -1,0 +1,32 @@
+version: '3'
+
+tasks:
+  keygen:
+    desc: |
+      Generate RSA key pairs.
+      Command format: task keygen -- -private [file] -public [file].
+      Example: task keygen -- -private ./private.pem -public ./public.pem.
+    cmds:
+      - go run cmd/keygen/main.go {{.CLI_ARGS}}
+
+  keygen-demo:
+    desc: Generate RSA key pairs for Trent, Alice and Bob.
+    cmds:
+      - go run cmd/keygen/main.go -private keys/alice/private.pem -public keys/alice/public.pem
+      - go run cmd/keygen/main.go -private keys/bob/private.pem -public keys/bob/public.pem
+      - go run cmd/keygen/main.go -private keys/trent/private.pem -public keys/trent/public.pem
+
+  trent-run:
+    desc: Run Trent.
+    cmds:
+      - go run cmd/trent/main.go -e env/trent.env
+
+  alice-run:
+    desc: Run Alice.
+    cmds:
+      - go run cmd/alice/main.go -e env/alice.env
+
+  bob-run:
+    desc: Run Bob.
+    cmds:
+      - go run cmd/bob/main.go -e env/bob.env
