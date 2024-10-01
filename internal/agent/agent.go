@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"slices"
@@ -13,6 +14,7 @@ import (
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
 	"github.com/sudeeya/key-exchange/internal/pkg/crypto"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
+	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 )
 
 const (
@@ -33,6 +35,7 @@ var _ tea.Model = (*Agent)(nil)
 var (
 	activeStyle   = lip.NewStyle().Foreground(lip.Color("255"))
 	inactiveStyle = lip.NewStyle().Foreground(lip.Color("240"))
+	staticStyle   = lip.NewStyle().Foreground(lip.Color("133"))
 )
 
 type Agent struct {
@@ -40,6 +43,7 @@ type Agent struct {
 	tui    *tui
 	keys   *keys
 	client *resty.Client
+	rng    *rng.RNG
 }
 
 type tui struct {
@@ -75,6 +79,7 @@ func NewAgent() *Agent {
 		tui:    initialTUI(),
 		keys:   keys,
 		client: resty.New(),
+		rng:    rng.NewRNG(),
 	}
 }
 
@@ -156,16 +161,18 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				a.tui.input.Blur()
-				//a.tui.active[writeMessageItem] = struct{}{}
 				a.tui.mode = menuMode
 
-				return a, requestSessionKey(a.cfg, a.keys, a.client, agentID)
+				return a, requestSessionKey(a.cfg, a.keys, a.client, a.rng, agentID)
 			case messageMode:
 
 			}
 		}
 	case ModeMsg:
 		a.tui.mode = int(msg)
+	case SessionEstablishedMsg:
+		a.tui.active[writeMessageItem] = struct{}{}
+		a.tui.sessions = append(a.tui.sessions, string(msg))
 	case ErrorMsg:
 		log.Println(msg)
 	}
@@ -203,10 +210,10 @@ func (a Agent) View() string {
 		}
 
 		for _, session := range a.tui.sessions {
-			s.WriteString(fmt.Sprintf("\nSession with %s established", session))
+			s.WriteString(staticStyle.Render(fmt.Sprintf("\nSession with %s established\n", session)))
 		}
 
-		s.WriteString("\nPress q to quit\n")
+		s.WriteString(staticStyle.Render("\nPress q to quit\n"))
 	case requestMode, messageMode:
 		s.WriteString(a.tui.input.View())
 	}
@@ -238,31 +245,59 @@ func selectItemCmd(tui *tui) tea.Cmd {
 	}
 }
 
-func requestSessionKey(cfg *config, keys *keys, client *resty.Client, acceptor string) tea.Cmd {
+func requestSessionKey(cfg *config, keys *keys, client *resty.Client, rng *rng.RNG, acceptor string) tea.Cmd {
 	return func() tea.Msg {
-		req := api.Request{
+		// Step 1
+		req1 := api.Request{
 			Initiator: cfg.ID,
 			Acceptor:  acceptor,
 		}
-		var resp api.Response
+		var resp1 api.Response
 		_, err := client.R().
 			SetHeader("Content-Type", "application/json").
-			SetBody(req).
-			SetResult(&resp).
-			Post(httpPrefix + cfg.TrentAddr + api.InitiateEndpoint)
+			SetBody(req1).
+			SetResult(&resp1).
+			Post(httpPrefix + cfg.TrentAddr + api.Step1Endpoint)
 		if err != nil {
 			return ErrorMsg(err)
 		}
 
-		ok, err := crypto.VerifyCertRSA(resp.Certificate, keys.trentKey)
+		infoJSON, err := json.Marshal(resp1.Certificate.Information)
 		if err != nil {
+			return ErrorMsg(err)
+		}
+		ok := crypto.VerifyRSA(infoJSON, resp1.Certificate.Signature, keys.trentKey)
+		if !ok {
 			return ErrorMsg(fmt.Errorf("signature verification failed"))
 		}
 
-		fmt.Println(ok)
+		acceptorKey := resp1.Certificate.Information.AcceptorKey
 
-		_ = keys
-		return SessionEstablishedMsg(true)
+		// Step 3
+		initiatorNonce, err := rng.GenerateNonce()
+		if err != nil {
+			return ErrorMsg(err)
+		}
+		info3 := api.Info{
+			Initiator:      cfg.ID,
+			InitiatorNonce: initiatorNonce,
+		}
+		infoJSON3, err := json.Marshal(info3)
+		if err != nil {
+			return ErrorMsg(err)
+		}
+		ciphertext := crypto.EncryptRSA(infoJSON3, acceptorKey)
+
+		acceptorAddr := getAgentAddr(acceptor, cfg)
+		_, err = client.R().
+			SetHeader("Content-Type", "text/plain").
+			SetBody(ciphertext).
+			Post(httpPrefix + acceptorAddr + api.Step3Endpoint)
+		if err != nil {
+			return ErrorMsg(err)
+		}
+
+		return SessionEstablishedMsg(acceptor)
 	}
 }
 
@@ -270,6 +305,6 @@ func requestSessionKey(cfg *config, keys *keys, client *resty.Client, acceptor s
 
 type ModeMsg int
 
-type SessionEstablishedMsg bool
+type SessionEstablishedMsg string
 
 type ErrorMsg error

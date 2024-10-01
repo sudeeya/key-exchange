@@ -1,8 +1,11 @@
 package api
 
 const (
-	InitiateEndpoint = "/initiate/"
-	ConfirmEndpoint  = "/confirm/"
+	Step1Endpoint = "/step1/"
+	Step3Endpoint = "/step3/"
+	Step4Endpoint = "/step4/"
+	Step6Endpoint = "/step6/"
+	Step7Endpoint = "/step7/"
 )
 
 type Request struct {
@@ -25,6 +28,7 @@ type Info struct {
 	Initiator      string `json:"initiator"`
 	Acceptor       string `json:"acceptor"`
 	InitiatorNonce []byte `json:"initiator_nonce"`
+	AcceptorNonce  []byte `json:"acceptor_nonce"`
 	InitiatorKey   []byte `json:"initiator_key"`
 	AcceptorKey    []byte `json:"acceptor_key"`
 	SessionKey     []byte `json:"session_key"`

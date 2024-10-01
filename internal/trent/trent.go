@@ -80,6 +80,6 @@ func (t Trent) Run() {
 }
 
 func (t *Trent) addRoutes() {
-	t.mux.Post(api.InitiateEndpoint, newInitiateHandler(t))
-	t.mux.Post(api.ConfirmEndpoint, newConfirmHandler(t))
+	t.mux.Post(api.Step1Endpoint, newInitiateHandler(t))
+	t.mux.Post(api.Step4Endpoint, newConfirmHandler(t))
 }

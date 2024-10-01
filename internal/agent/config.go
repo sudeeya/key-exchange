@@ -1,6 +1,10 @@
 package agent
 
-import "github.com/caarlos0/env"
+import (
+	"slices"
+
+	"github.com/caarlos0/env"
+)
 
 type config struct {
 	ID         string `env:"ID,required"`
@@ -21,4 +25,12 @@ func newConfig() (*config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func getAgentAddr(agent string, cfg *config) string {
+	i := slices.Index(cfg.AgentIDs, agent)
+	if i == -1 {
+		return ""
+	}
+	return cfg.AgentAddrs[i]
 }

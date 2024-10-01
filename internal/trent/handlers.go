@@ -9,6 +9,7 @@ import (
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 )
 
+// Step 2
 func newInitiateHandler(t *Trent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req api.Request
@@ -46,6 +47,7 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 	}
 }
 
+// Step 5
 func newConfirmHandler(t *Trent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req api.Request

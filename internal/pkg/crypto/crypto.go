@@ -1,10 +1,7 @@
 package crypto
 
 import (
-	"encoding/json"
-
 	"github.com/golang-module/dongle"
-	"github.com/sudeeya/key-exchange/internal/pkg/api"
 )
 
 func EncryptRSA(plaintext, publicKey []byte) []byte {
@@ -31,14 +28,10 @@ func SignRSA(message, privateKey []byte) []byte {
 	return signature
 }
 
-func VerifyCertRSA(cert api.Cert, publicKey []byte) (bool, error) {
-	infoJSON, err := json.Marshal(cert.Information)
-	if err != nil {
-		return false, nil
-	}
+func VerifyRSA(message, signature, publicKey []byte) bool {
 	ok := dongle.Verify.
-		FromRawBytes(cert.Signature, infoJSON).
+		FromRawBytes(signature, message).
 		ByRsa(publicKey, dongle.SHA256).
 		ToBool()
-	return ok, nil
+	return ok
 }
