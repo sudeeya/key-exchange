@@ -9,8 +9,8 @@ type config struct {
 	PublicKey  string `env:"PUBLIC_KEY,required"`
 	PrivateKey string `env:"PRIVATE_KEY,required"`
 
-	ClientIDs        []string `env:"CLIENT_IDS,required"`
-	ClientPublicKeys []string `env:"CLIENT_PUBLIC_KEYS,required"`
+	AgentIDs        []string `env:"AGENT_IDS,required"`
+	AgentPublicKeys []string `env:"AGENT_PUBLIC_KEYS,required"`
 }
 
 func newConfig() (*config, error) {

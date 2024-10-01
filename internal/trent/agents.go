@@ -4,20 +4,20 @@ import (
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 )
 
-type client struct {
+type agent struct {
 	PublicKey []byte
 }
 
-type clients map[string]client
+type agents map[string]agent
 
-func newClients(ids, keys []string) (clients, error) {
-	clientsList := make(clients, len(ids))
+func newAgents(ids, keys []string) (agents, error) {
+	clientsList := make(agents, len(ids))
 	for i, id := range ids {
 		publicKey, err := pem.ExtractRSAPublicKey(keys[i])
 		if err != nil {
 			return nil, err
 		}
-		clientsList[id] = client{PublicKey: publicKey}
+		clientsList[id] = agent{PublicKey: publicKey}
 	}
 
 	return clientsList, nil

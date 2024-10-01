@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/golang-module/dongle"
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
+	"github.com/sudeeya/key-exchange/internal/pkg/crypto"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 )
 
@@ -17,7 +17,7 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		acceptorKey := t.clientsList[req.Acceptor].PublicKey
+		acceptorKey := t.agentList[req.Acceptor].PublicKey
 
 		info := api.Info{
 			AcceptorKey: acceptorKey,
@@ -28,19 +28,16 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		signature := dongle.Sign.
-			FromBytes(infoJSON).
-			ByRsa(t.privateKey, dongle.SHA256).
-			ToRawBytes()
+		signature := crypto.SignRSA(infoJSON, t.privateKey)
 
 		resp := api.Response{
-			Certificate: api.Certificate{
-				Info:      info,
-				Signature: signature,
+			Certificate: api.Cert{
+				Information: info,
+				Signature:   signature,
 			},
 		}
 
-		w.Header().Set("Content-Tyoe", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -57,7 +54,7 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		initiatorKey := t.clientsList[req.Initiator].PublicKey
+		initiatorKey := t.agentList[req.Initiator].PublicKey
 		info := api.Info{
 			InitiatorKey: initiatorKey,
 		}
@@ -67,15 +64,9 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		signature := dongle.Sign.
-			FromBytes(infoJSON).
-			ByRsa(t.privateKey, dongle.SHA256).
-			ToRawBytes()
+		signature := crypto.SignRSA(infoJSON, t.privateKey)
 
-		initiatorNonce := dongle.Decrypt.
-			FromRawBytes(req.Ciphertext).
-			ByRsa(t.privateKey).
-			ToBytes()
+		initiatorNonce := crypto.DecryptRSA(req.Ciphertext, t.privateKey)
 
 		sessionKey, err := t.rng.GenerateKey(rng.KuznyechikKeySize)
 		if err != nil {
@@ -95,14 +86,11 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		signatureToEncrypt := dongle.Sign.
-			FromBytes(infoToEncryptJSON).
-			ByRsa(t.privateKey, dongle.SHA256).
-			ToRawBytes()
+		signatureToEncrypt := crypto.SignRSA(infoToEncryptJSON, t.privateKey)
 
-		certToEncrypt := api.Certificate{
-			Info:      infoToEncrypt,
-			Signature: signatureToEncrypt,
+		certToEncrypt := api.Cert{
+			Information: infoToEncrypt,
+			Signature:   signatureToEncrypt,
 		}
 		certToEncryptJSON, err := json.Marshal(certToEncrypt)
 		if err != nil {
@@ -110,21 +98,18 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		acceptorKey := t.clientsList[req.Acceptor].PublicKey
-		ciphertext := dongle.Encrypt.
-			FromBytes(certToEncryptJSON).
-			ByRsa(acceptorKey).
-			ToRawBytes()
+		acceptorKey := t.agentList[req.Acceptor].PublicKey
+		ciphertext := crypto.EncryptRSA(certToEncryptJSON, acceptorKey)
 
 		resp := api.Response{
-			Certificate: api.Certificate{
-				Info:      info,
-				Signature: signature,
+			Certificate: api.Cert{
+				Information: info,
+				Signature:   signature,
 			},
 			Ciphertext: ciphertext,
 		}
 
-		w.Header().Set("Content-Tyoe", "application/json")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

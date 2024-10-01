@@ -1,5 +1,10 @@
 package api
 
+const (
+	InitiateEndpoint = "/initiate/"
+	ConfirmEndpoint  = "/confirm/"
+)
+
 type Request struct {
 	Initiator  string `json:"initiator"`
 	Acceptor   string `json:"acceptor"`
@@ -7,13 +12,13 @@ type Request struct {
 }
 
 type Response struct {
-	Certificate
-	Ciphertext []byte `json:"ciphertext"`
+	Certificate Cert   `json:"certificate"`
+	Ciphertext  []byte `json:"ciphertext"`
 }
 
-type Certificate struct {
-	Info
-	Signature []byte `json:"signature"`
+type Cert struct {
+	Information Info   `json:"info"`
+	Signature   []byte `json:"signature"`
 }
 
 type Info struct {
