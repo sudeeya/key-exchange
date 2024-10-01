@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	lip "github.com/charmbracelet/lipgloss"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-resty/resty/v2"
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
 	"github.com/sudeeya/key-exchange/internal/pkg/crypto"
@@ -35,7 +38,7 @@ var _ tea.Model = (*Agent)(nil)
 var (
 	activeStyle   = lip.NewStyle().Foreground(lip.Color("255"))
 	inactiveStyle = lip.NewStyle().Foreground(lip.Color("240"))
-	staticStyle   = lip.NewStyle().Foreground(lip.Color("133"))
+	errorStyle    = lip.NewStyle().Foreground(lip.Color("160"))
 )
 
 type Agent struct {
@@ -43,6 +46,7 @@ type Agent struct {
 	tui    *tui
 	keys   *keys
 	client *resty.Client
+	mux    *chi.Mux
 	rng    *rng.RNG
 }
 
@@ -53,6 +57,7 @@ type tui struct {
 	cursor   int
 	input    textinput.Model
 	sessions []string
+	err      string
 }
 
 type keys struct {
@@ -74,11 +79,15 @@ func NewAgent() *Agent {
 		log.Fatal(err)
 	}
 
+	mux := chi.NewRouter()
+	mux.Use(middleware.Logger)
+
 	return &Agent{
 		cfg:    cfg,
 		tui:    initialTUI(),
 		keys:   keys,
 		client: resty.New(),
+		mux:    mux,
 		rng:    rng.NewRNG(),
 	}
 }
@@ -96,6 +105,7 @@ func initialTUI() *tui {
 		cursor:   requestSessionKeyItem,
 		input:    textinput.New(),
 		sessions: make([]string, 0),
+		err:      "",
 	}
 }
 
@@ -174,7 +184,7 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.tui.active[writeMessageItem] = struct{}{}
 		a.tui.sessions = append(a.tui.sessions, string(msg))
 	case ErrorMsg:
-		log.Println(msg)
+		a.tui.err = error(msg).Error()
 	}
 
 	switch a.tui.mode {
@@ -205,15 +215,19 @@ func (a Agent) View() string {
 				style = activeStyle
 			}
 
-			s.WriteString(fmt.Sprintf("%s %s\n", cursor, style.Render(item)))
+			s.WriteString(fmt.Sprintf("%s %s\n", activeStyle.Render(cursor), style.Render(item)))
 
+		}
+
+		if a.tui.err != "" {
+			s.WriteString(errorStyle.Render(fmt.Sprintf("\n%s\n", a.tui.err)))
 		}
 
 		for _, session := range a.tui.sessions {
-			s.WriteString(staticStyle.Render(fmt.Sprintf("\nSession with %s established\n", session)))
+			s.WriteString(inactiveStyle.Render(fmt.Sprintf("\nSession with %s established\n", session)))
 		}
 
-		s.WriteString(staticStyle.Render("\nPress q to quit\n"))
+		s.WriteString(inactiveStyle.Render("\nPress q to quit\n"))
 	case requestMode, messageMode:
 		s.WriteString(a.tui.input.View())
 	}
@@ -222,9 +236,15 @@ func (a Agent) View() string {
 }
 
 func (a Agent) Run() {
+	go func() {
+		if err := http.ListenAndServe(a.cfg.Addr, a.mux); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
 	prog := tea.NewProgram(a, tea.WithAltScreen())
 	if _, err := prog.Run(); err != nil {
-		// TODO: Add logging
+		log.Fatal(err)
 	}
 }
 
@@ -253,13 +273,16 @@ func requestSessionKey(cfg *config, keys *keys, client *resty.Client, rng *rng.R
 			Acceptor:  acceptor,
 		}
 		var resp1 api.Response
-		_, err := client.R().
+		rawResp1, err := client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(req1).
 			SetResult(&resp1).
 			Post(httpPrefix + cfg.TrentAddr + api.Step1Endpoint)
 		if err != nil {
 			return ErrorMsg(err)
+		}
+		if rawResp1.StatusCode() != http.StatusOK {
+			return ErrorMsg(fmt.Errorf("step 1 status code is %d", rawResp1.StatusCode()))
 		}
 
 		infoJSON, err := json.Marshal(resp1.Certificate.Information)
@@ -289,12 +312,15 @@ func requestSessionKey(cfg *config, keys *keys, client *resty.Client, rng *rng.R
 		ciphertext := crypto.EncryptRSA(infoJSON3, acceptorKey)
 
 		acceptorAddr := getAgentAddr(acceptor, cfg)
-		_, err = client.R().
+		rawResp3, err := client.R().
 			SetHeader("Content-Type", "text/plain").
 			SetBody(ciphertext).
 			Post(httpPrefix + acceptorAddr + api.Step3Endpoint)
 		if err != nil {
 			return ErrorMsg(err)
+		}
+		if rawResp3.StatusCode() != http.StatusOK {
+			return ErrorMsg(fmt.Errorf("step 3 status code is %d", rawResp3.StatusCode()))
 		}
 
 		return SessionEstablishedMsg(acceptor)
