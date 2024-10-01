@@ -1,15 +1,11 @@
 package trent
 
 import (
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/json"
 	"net/http"
 
+	"github.com/golang-module/dongle"
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
-	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 )
 
@@ -22,10 +18,9 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 		}
 
 		acceptorKey := t.clientsList[req.Acceptor].PublicKey
-		acceptorKeyPEM := pem.EncodeRSAPublicKey(acceptorKey)
 
 		info := api.Info{
-			AcceptorKey: acceptorKeyPEM,
+			AcceptorKey: acceptorKey,
 		}
 		infoJSON, err := json.Marshal(info)
 		if err != nil {
@@ -33,18 +28,10 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		hash := sha256.New()
-		if _, err := hash.Write(infoJSON); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		infoJSONHash := hash.Sum(nil)
-
-		signature, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoJSONHash)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		signature := dongle.Sign.
+			FromBytes(infoJSON).
+			ByRsa(t.privateKey, dongle.SHA256).
+			ToRawBytes()
 
 		resp := api.Response{
 			Certificate: api.Certificate{
@@ -71,9 +58,8 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 		}
 
 		initiatorKey := t.clientsList[req.Initiator].PublicKey
-		initiatorKeyPEM := pem.EncodeRSAPublicKey(initiatorKey)
 		info := api.Info{
-			InitiatorKey: initiatorKeyPEM,
+			InitiatorKey: initiatorKey,
 		}
 		infoJSON, err := json.Marshal(info)
 		if err != nil {
@@ -81,24 +67,15 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		hash := sha256.New()
-		if _, err := hash.Write(infoJSON); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		infoJSONHash := hash.Sum(nil)
+		signature := dongle.Sign.
+			FromBytes(infoJSON).
+			ByRsa(t.privateKey, dongle.SHA256).
+			ToRawBytes()
 
-		signature, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoJSONHash)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		initiatorNonce, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, t.privateKey, req.Ciphertext, nil)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		initiatorNonce := dongle.Decrypt.
+			FromRawBytes(req.Ciphertext).
+			ByRsa(t.privateKey).
+			ToBytes()
 
 		sessionKey, err := t.rng.GenerateKey(rng.KuznyechikKeySize)
 		if err != nil {
@@ -118,18 +95,10 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 			return
 		}
 
-		hash.Reset()
-		if _, err := hash.Write(infoToEncryptJSON); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		infoToEncryptJSONHash := hash.Sum(nil)
-
-		signatureToEncrypt, err := rsa.SignPKCS1v15(rand.Reader, t.privateKey, crypto.SHA256, infoToEncryptJSONHash)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		signatureToEncrypt := dongle.Sign.
+			FromBytes(infoToEncryptJSON).
+			ByRsa(t.privateKey, dongle.SHA256).
+			ToRawBytes()
 
 		certToEncrypt := api.Certificate{
 			Info:      infoToEncrypt,
@@ -142,11 +111,10 @@ func newConfirmHandler(t *Trent) http.HandlerFunc {
 		}
 
 		acceptorKey := t.clientsList[req.Acceptor].PublicKey
-		ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, acceptorKey, certToEncryptJSON, nil)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		ciphertext := dongle.Encrypt.
+			FromBytes(certToEncryptJSON).
+			ByRsa(acceptorKey).
+			ToRawBytes()
 
 		resp := api.Response{
 			Certificate: api.Certificate{

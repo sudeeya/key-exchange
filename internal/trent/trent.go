@@ -1,7 +1,6 @@
 package trent
 
 import (
-	"crypto/rsa"
 	"log"
 	"net/http"
 
@@ -15,8 +14,8 @@ type Trent struct {
 	clientsList clients
 	mux         *chi.Mux
 	rng         *rng.RNG
-	privateKey  *rsa.PrivateKey
-	publicKey   *rsa.PublicKey
+	privateKey  []byte
+	publicKey   []byte
 }
 
 func NewTrent() *Trent {

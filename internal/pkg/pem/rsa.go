@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"os"
 )
 
@@ -32,18 +31,8 @@ func SaveRSAPrivateKey(key *rsa.PrivateKey, file string) error {
 	return nil
 }
 
-func ExtractRSAPrivateKey(file string) (*rsa.PrivateKey, error) {
-	pemData, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(pemData)
-	if block == nil || block.Type != PrivateKeyBlockType {
-		return nil, fmt.Errorf("PEM file does not contain %s", PrivateKeyBlockType)
-	}
-
-	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+func ExtractRSAPrivateKey(file string) ([]byte, error) {
+	key, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}
@@ -69,18 +58,8 @@ func SaveRSAPublicKey(key *rsa.PublicKey, file string) error {
 	return nil
 }
 
-func ExtractRSAPublicKey(file string) (*rsa.PublicKey, error) {
-	pemData, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(pemData)
-	if block == nil || block.Type != PublicKeyBlockType {
-		return nil, fmt.Errorf("PEM file does not contain %s", PublicKeyBlockType)
-	}
-
-	key, err := x509.ParsePKCS1PublicKey(block.Bytes)
+func ExtractRSAPublicKey(file string) ([]byte, error) {
+	key, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
 	}

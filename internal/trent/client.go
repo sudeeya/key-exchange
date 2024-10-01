@@ -1,13 +1,11 @@
 package trent
 
 import (
-	"crypto/rsa"
-
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 )
 
 type client struct {
-	PublicKey *rsa.PublicKey
+	PublicKey []byte
 }
 
 type clients map[string]client
