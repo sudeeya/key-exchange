@@ -132,7 +132,24 @@ func step7Handler(a *Agent) http.HandlerFunc {
 			return
 		}
 
-		a.msgCh <- SessionEstablishedMsg(a.cfg.AgentID)
+		a.tui.session = a.cfg.AgentID
+		a.tui.active[writeMessageItem] = struct{}{}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func MessageHandler(a *Agent) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var msg api.Message
+		if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		message := crypto.DecryptAES(msg.Ciphertext, a.keys.sessionKey, msg.IV)
+		a.tui.messages = append(a.tui.messages, string(message))
+		a.tui.unread = true
 
 		w.WriteHeader(http.StatusOK)
 	}

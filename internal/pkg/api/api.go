@@ -1,10 +1,11 @@
 package api
 
 const (
-	Step2Endpoint = "/step2/"
-	Step4Endpoint = "/step4/"
-	Step5Endpoint = "/step5/"
-	Step7Endpoint = "/step7/"
+	Step2Endpoint   = "/step2/"
+	Step4Endpoint   = "/step4/"
+	Step5Endpoint   = "/step5/"
+	Step7Endpoint   = "/step7/"
+	MessageEndpoint = "/msg/"
 )
 
 type Request struct {

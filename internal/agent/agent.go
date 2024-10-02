@@ -21,11 +21,13 @@ import (
 const (
 	menuMode = iota
 	requestMode
+	mailMode
 	messageMode
 )
 
 const (
 	requestSessionKeyItem = iota
+	mailboxItem
 	writeMessageItem
 )
 
@@ -46,7 +48,6 @@ type Agent struct {
 	client *resty.Client
 	mux    *chi.Mux
 	rng    *rng.RNG
-	msgCh  chan tea.Msg
 }
 
 type tui struct {
@@ -55,7 +56,9 @@ type tui struct {
 	active   map[int]struct{}
 	cursor   int
 	input    textinput.Model
-	sessions []string
+	session  string
+	messages []string
+	unread   bool
 	err      string
 }
 
@@ -87,7 +90,6 @@ func NewAgent() *Agent {
 		client: resty.New(),
 		mux:    mux,
 		rng:    rng.NewRNG(),
-		msgCh:  make(chan tea.Msg),
 	}
 }
 
@@ -96,14 +98,18 @@ func initialTUI() *tui {
 		mode: menuMode,
 		items: []string{
 			"Request session key",
+			"Mailbox",
 			"Write a message",
 		},
 		active: map[int]struct{}{
 			requestSessionKeyItem: {},
+			mailboxItem:           {},
 		},
 		cursor:   requestSessionKeyItem,
 		input:    textinput.New(),
-		sessions: make([]string, 0),
+		session:  "",
+		messages: make([]string, 0),
+		unread:   false,
 		err:      "",
 	}
 }
@@ -128,7 +134,7 @@ func initialKeys(cfg *config) (*keys, error) {
 }
 
 func (a Agent) Init() tea.Cmd {
-	return checkMsgChanCmd(&a)
+	return nil
 }
 
 func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -149,6 +155,10 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.tui.input.Reset()
 				a.tui.input.Blur()
 				return a, nil
+			case mailMode:
+				a.tui.unread = false
+				a.tui.mode = menuMode
+				return a, nil
 			}
 		case "up":
 			switch a.tui.mode {
@@ -156,6 +166,7 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if a.tui.cursor > 0 {
 					a.tui.cursor--
 				}
+				return a, nil
 			}
 		case "down":
 			switch a.tui.mode {
@@ -164,6 +175,7 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if a.tui.cursor < len(a.tui.items)-1 && ok {
 					a.tui.cursor++
 				}
+				return a, nil
 			}
 		case "enter":
 			switch a.tui.mode {
@@ -182,19 +194,22 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.tui.input.Blur()
 				a.tui.mode = menuMode
 
-				return a, requestSessionKeyCmd(a.cfg, a.keys, a.client, a.rng, agentID)
+				return a, requestSessionKeyCmd(&a, agentID)
 			case messageMode:
+				msg := a.tui.input.Value()
+				a.tui.input.Reset()
+				a.tui.input.Blur()
+				a.tui.mode = menuMode
 
+				return a, sendMessageCmd(&a, msg)
 			}
 		}
-	case ModeMsg:
+	case ModeChangedMsg:
 		a.tui.mode = int(msg)
-	case SessionEstablishedMsg:
-		a.tui.active[writeMessageItem] = struct{}{}
-		a.tui.sessions = append(a.tui.sessions, string(msg))
-		return a, nil
 	case ErrorMsg:
-		a.tui.err = error(msg).Error()
+		if error(msg) != nil {
+			a.tui.err = error(msg).Error()
+		}
 	}
 
 	switch a.tui.mode {
@@ -226,7 +241,12 @@ func (a Agent) View() string {
 				style = activeStyle
 			}
 
-			s.WriteString(fmt.Sprintf(" %s %s\n", activeStyle.Render(cursor), style.Render(item)))
+			switch {
+			case i == mailboxItem && a.tui.unread:
+				s.WriteString(fmt.Sprintf(" %s [!] %s\n", activeStyle.Render(cursor), style.Render(item)))
+			default:
+				s.WriteString(fmt.Sprintf(" %s     %s\n", activeStyle.Render(cursor), style.Render(item)))
+			}
 
 		}
 
@@ -234,13 +254,24 @@ func (a Agent) View() string {
 			s.WriteString(errorStyle.Render(fmt.Sprintf("\n %s\n", a.tui.err)))
 		}
 
-		for _, session := range a.tui.sessions {
-			s.WriteString(inactiveStyle.Render(fmt.Sprintf("\n Session with %s established\n", session)))
+		if a.tui.session != "" {
+			s.WriteString(inactiveStyle.Render(fmt.Sprintf("\n Session with %s established\n", a.tui.session)))
 		}
 
 		s.WriteString(inactiveStyle.Render("\n Press q to quit\n"))
 	case requestMode, messageMode:
 		s.WriteString(" " + a.tui.input.View() + "\n")
+
+		s.WriteString(inactiveStyle.Render("\n Press esc to return to the menu\n"))
+	case mailMode:
+		if len(a.tui.messages) == 0 {
+			s.WriteString(inactiveStyle.Render(" Mailbox is empty\n"))
+		}
+
+		for _, message := range a.tui.messages {
+			point := "*"
+			s.WriteString(fmt.Sprintf(" %s %s\n", activeStyle.Render(point), activeStyle.Render(message)))
+		}
 
 		s.WriteString(inactiveStyle.Render("\n Press esc to return to the menu\n"))
 	}
@@ -266,19 +297,10 @@ func (a Agent) Run() {
 func (a *Agent) addRoutes() {
 	a.mux.Post(api.Step4Endpoint, step4Handler(a))
 	a.mux.Post(api.Step7Endpoint, step7Handler(a))
+	a.mux.Post(api.MessageEndpoint, MessageHandler(a))
 }
 
 // Cmd
-
-func checkMsgChanCmd(a *Agent) tea.Cmd {
-	go func() {
-		for msg := range a.msgCh {
-			a.Update(msg)
-		}
-	}()
-
-	return nil
-}
 
 func selectItemCmd(tui *tui) tea.Cmd {
 	return func() tea.Msg {
@@ -287,29 +309,31 @@ func selectItemCmd(tui *tui) tea.Cmd {
 		switch tui.cursor {
 		case requestSessionKeyItem:
 			tui.input.Placeholder = "Enter agent ID"
-			return ModeMsg(requestMode)
+			return ModeChangedMsg(requestMode)
+		case mailboxItem:
+			return ModeChangedMsg(mailMode)
 		case writeMessageItem:
 			tui.input.Placeholder = "Enter your message"
-			return ModeMsg(messageMode)
+			return ModeChangedMsg(messageMode)
 		}
 
-		return ModeMsg(menuMode)
+		return ModeChangedMsg(menuMode)
 	}
 }
 
-func requestSessionKeyCmd(cfg *config, keys *keys, client *resty.Client, rng *rng.RNG, acceptor string) tea.Cmd {
+func requestSessionKeyCmd(a *Agent, acceptor string) tea.Cmd {
 	return func() tea.Msg {
 		// Step 1
 		req1 := api.Request{
-			Initiator: cfg.ID,
+			Initiator: a.cfg.ID,
 			Acceptor:  acceptor,
 		}
 		var resp2 api.Response
-		rawResp2, err := client.R().
+		rawResp2, err := a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(req1).
 			SetResult(&resp2).
-			Post(httpPrefix + cfg.TrentAddr + api.Step2Endpoint)
+			Post(httpPrefix + a.cfg.TrentAddr + api.Step2Endpoint)
 		if err != nil {
 			return ErrorMsg(err)
 		}
@@ -321,35 +345,35 @@ func requestSessionKeyCmd(cfg *config, keys *keys, client *resty.Client, rng *rn
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		ok := crypto.VerifyRSA(infoJSON, resp2.Certificate.Signature, keys.trentKey)
+		ok := crypto.VerifyRSA(infoJSON, resp2.Certificate.Signature, a.keys.trentKey)
 		if !ok {
 			return ErrorMsg(fmt.Errorf("signature verification failed"))
 		}
 
-		keys.agentKey = resp2.Certificate.Information.AcceptorKey
+		a.keys.agentKey = resp2.Certificate.Information.AcceptorKey
 
 		// Step 3
-		initiatorNonce, err := rng.GenerateNonce()
+		initiatorNonce, err := a.rng.GenerateNonce()
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		keys.nonce = initiatorNonce
+		a.keys.nonce = initiatorNonce
 		info3 := api.Info{
-			Initiator:      cfg.ID,
+			Initiator:      a.cfg.ID,
 			InitiatorNonce: initiatorNonce,
 		}
 		infoJSON3, err := json.Marshal(info3)
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		ciphertext := crypto.EncryptRSA(infoJSON3, keys.agentKey)
+		ciphertext := crypto.EncryptRSA(infoJSON3, a.keys.agentKey)
 
 		req3 := api.Request{
 			Ciphertext: ciphertext,
 		}
-		acceptorAddr := cfg.AgentAddr
+		acceptorAddr := a.cfg.AgentAddr
 		var resp4 api.Response
-		rawResp3, err := client.R().
+		rawResp3, err := a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(req3).
 			SetResult(&resp4).
@@ -361,26 +385,26 @@ func requestSessionKeyCmd(cfg *config, keys *keys, client *resty.Client, rng *rn
 			return ErrorMsg(fmt.Errorf("step 4 status code is %d", rawResp3.StatusCode()))
 		}
 
-		respJSON := crypto.DecryptRSA(resp4.Ciphertext, keys.privateKey)
+		respJSON := crypto.DecryptRSA(resp4.Ciphertext, a.keys.privateKey)
 
 		var resp api.Response
 		if err := json.Unmarshal(respJSON, &resp); err != nil {
 			return ErrorMsg(err)
 		}
 
-		keys.sessionKey = resp.Certificate.Information.SessionKey
+		a.keys.sessionKey = resp.Certificate.Information.SessionKey
 
 		// Step 7
-		iv, err := rng.GenerateIV()
+		iv, err := a.rng.GenerateIV()
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		ciphertext7 := crypto.EncryptAES(resp.AcceptorNonce, keys.sessionKey, iv)
+		ciphertext7 := crypto.EncryptAES(resp.AcceptorNonce, a.keys.sessionKey, iv)
 		msg := api.Message{
 			IV:         iv,
 			Ciphertext: ciphertext7,
 		}
-		rawResp7, err := client.R().
+		rawResp7, err := a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(msg).
 			Post(httpPrefix + acceptorAddr + api.Step7Endpoint)
@@ -391,14 +415,47 @@ func requestSessionKeyCmd(cfg *config, keys *keys, client *resty.Client, rng *rn
 			return ErrorMsg(fmt.Errorf("step 7 status code is %d", rawResp7.StatusCode()))
 		}
 
-		return SessionEstablishedMsg(acceptor)
+		a.tui.session = acceptor
+		a.tui.active[writeMessageItem] = struct{}{}
+
+		return ErrorMsg(nil)
+	}
+}
+
+func sendMessageCmd(a *Agent, msg string) tea.Cmd {
+	return func() tea.Msg {
+		if msg == "" {
+			return ErrorMsg(nil)
+		}
+
+		iv, err := a.rng.GenerateIV()
+		if err != nil {
+			return ErrorMsg(err)
+		}
+		ciphertext := crypto.EncryptAES([]byte(msg), a.keys.sessionKey, iv)
+		msg := api.Message{
+			IV:         iv,
+			Ciphertext: ciphertext,
+		}
+		rawResp, err := a.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetBody(msg).
+			Post(httpPrefix + a.cfg.AgentAddr + api.MessageEndpoint)
+		if err != nil {
+			return ErrorMsg(err)
+		}
+		if rawResp.StatusCode() != http.StatusOK {
+			return ErrorMsg(fmt.Errorf("error sending message: status code is %d", rawResp.StatusCode()))
+		}
+
+		return ErrorMsg(nil)
 	}
 }
 
 // Msg
 
-type ModeMsg int
+type ModeChangedMsg int
 
-type SessionEstablishedMsg string
+type MessageRecievedMsg struct{}
 
 type ErrorMsg error
