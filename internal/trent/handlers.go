@@ -10,7 +10,7 @@ import (
 )
 
 // Step 2
-func newInitiateHandler(t *Trent) http.HandlerFunc {
+func step2Handler(t *Trent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req api.Request
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -48,7 +48,7 @@ func newInitiateHandler(t *Trent) http.HandlerFunc {
 }
 
 // Step 5
-func newConfirmHandler(t *Trent) http.HandlerFunc {
+func step5Handler(t *Trent) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req api.Request
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

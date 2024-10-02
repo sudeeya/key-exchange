@@ -1,8 +1,6 @@
 package agent
 
 import (
-	"slices"
-
 	"github.com/caarlos0/env"
 )
 
@@ -15,8 +13,8 @@ type config struct {
 	TrentAddr      string `env:"TRENT_ADDR,required"`
 	TrentPublicKey string `env:"TRENT_PUBLIC_KEY,required"`
 
-	AgentIDs   []string `env:"AGENT_IDS,required"`
-	AgentAddrs []string `env:"AGENT_ADDRS,required"`
+	AgentID   string `env:"AGENT_ID,required"`
+	AgentAddr string `env:"AGENT_ADDR,required"`
 }
 
 func newConfig() (*config, error) {
@@ -25,12 +23,4 @@ func newConfig() (*config, error) {
 		return nil, err
 	}
 	return &cfg, nil
-}
-
-func getAgentAddr(agent string, cfg *config) string {
-	i := slices.Index(cfg.AgentIDs, agent)
-	if i == -1 {
-		return ""
-	}
-	return cfg.AgentAddrs[i]
 }

@@ -9,6 +9,7 @@ func EncryptRSA(plaintext, publicKey []byte) []byte {
 		FromBytes(plaintext).
 		ByRsa(publicKey).
 		ToRawBytes()
+
 	return ciphertext
 }
 
@@ -17,6 +18,7 @@ func DecryptRSA(ciphertext, privateKey []byte) []byte {
 		FromRawBytes(ciphertext).
 		ByRsa(privateKey).
 		ToBytes()
+
 	return plaintext
 }
 
@@ -25,6 +27,7 @@ func SignRSA(message, privateKey []byte) []byte {
 		FromBytes(message).
 		ByRsa(privateKey, dongle.SHA256).
 		ToRawBytes()
+
 	return signature
 }
 
@@ -33,5 +36,36 @@ func VerifyRSA(message, signature, publicKey []byte) bool {
 		FromRawBytes(signature, message).
 		ByRsa(publicKey, dongle.SHA256).
 		ToBool()
+
 	return ok
+}
+
+func EncryptAES(plaintext, key, iv []byte) []byte {
+	cipher := dongle.NewCipher()
+	cipher.SetMode(dongle.OFB)
+	cipher.SetPadding(dongle.PKCS7)
+	cipher.SetKey(key)
+	cipher.SetIV(iv)
+
+	ciphertext := dongle.Encrypt.
+		FromBytes(plaintext).
+		ByAes(cipher).
+		ToRawBytes()
+
+	return ciphertext
+}
+
+func DecryptAES(ciphertext, key, iv []byte) []byte {
+	cipher := dongle.NewCipher()
+	cipher.SetMode(dongle.OFB)
+	cipher.SetPadding(dongle.PKCS7)
+	cipher.SetKey(key)
+	cipher.SetIV(iv)
+
+	plaintext := dongle.Decrypt.
+		FromRawBytes(ciphertext).
+		ByAes(cipher).
+		ToBytes()
+
+	return plaintext
 }
