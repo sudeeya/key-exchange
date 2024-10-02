@@ -456,6 +456,4 @@ func sendMessageCmd(a *Agent, msg string) tea.Cmd {
 
 type ModeChangedMsg int
 
-type MessageRecievedMsg struct{}
-
 type ErrorMsg error
