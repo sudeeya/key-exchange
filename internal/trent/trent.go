@@ -3,6 +3,9 @@ package trent
 import (
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -77,10 +80,27 @@ func (t Trent) Run() {
 	t.logger.Info("Initializing endpoints")
 	t.addRoutes()
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	t.logger.Info("Server is running")
+	go func() {
+		<-sigCh
+		t.logger.Info("Trent is shutting down")
+		t.Shutdown()
+	}()
+
 	if err := http.ListenAndServe(t.cfg.Addr, t.mux); err != nil {
 		t.logger.Fatal(err.Error())
 	}
+}
+
+func (t Trent) Shutdown() {
+	if err := t.logger.Sync(); err != nil {
+		t.logger.Sugar().Fatalf("failed to sync logger: %v", err)
+	}
+
+	os.Exit(0)
 }
 
 func (t *Trent) addRoutes() {

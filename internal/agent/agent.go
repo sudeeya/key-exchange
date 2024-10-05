@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -101,6 +104,9 @@ func NewAgent() *Agent {
 	client.SetLogger(logger.Sugar())
 	client.SetDebug(true)
 
+	logger.Info("Initializing RNG")
+	rng := rng.NewRNG()
+
 	return &Agent{
 		cfg:    cfg,
 		logger: logger,
@@ -108,7 +114,7 @@ func NewAgent() *Agent {
 		keys:   keys,
 		client: client,
 		mux:    mux,
-		rng:    rng.NewRNG(),
+		rng:    rng,
 	}
 }
 
@@ -302,7 +308,16 @@ func (a Agent) Run() {
 	a.logger.Info("Initializing endpoints")
 	a.addRoutes()
 
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+
 	a.logger.Info("Agent is running")
+	go func() {
+		<-sigCh
+		a.logger.Info("Trent is shutting down")
+		a.Shutdown()
+	}()
+
 	go func() {
 		if err := http.ListenAndServe(a.cfg.Addr, a.mux); err != nil {
 			a.logger.Fatal(err.Error())
@@ -313,6 +328,14 @@ func (a Agent) Run() {
 	if _, err := prog.Run(); err != nil {
 		a.logger.Fatal(err.Error())
 	}
+}
+
+func (a Agent) Shutdown() {
+	if err := a.logger.Sync(); err != nil {
+		a.logger.Sugar().Fatalf("failed to sync logger: %v", err)
+	}
+
+	os.Exit(0)
 }
 
 func (a *Agent) addRoutes() {
