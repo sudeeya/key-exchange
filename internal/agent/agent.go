@@ -167,10 +167,12 @@ func (a Agent) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
+			a.tuiShutdown()
 			return a, tea.Quit
 		case "q":
 			switch a.tui.mode {
 			case menuMode:
+				a.tuiShutdown()
 				return a, tea.Quit
 			}
 		case "esc":
@@ -311,6 +313,8 @@ func (a Agent) Run() {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
+	prog := tea.NewProgram(a, tea.WithAltScreen())
+
 	a.logger.Info("Agent is running")
 	go func() {
 		<-sigCh
@@ -324,7 +328,6 @@ func (a Agent) Run() {
 		}
 	}()
 
-	prog := tea.NewProgram(a, tea.WithAltScreen())
 	if _, err := prog.Run(); err != nil {
 		a.logger.Fatal(err.Error())
 	}
@@ -342,6 +345,14 @@ func (a *Agent) addRoutes() {
 	a.mux.Post(api.Step4Endpoint, step4Handler(a))
 	a.mux.Post(api.Step7Endpoint, step7Handler(a))
 	a.mux.Post(api.MessageEndpoint, messageHandler(a))
+}
+
+func (a *Agent) tuiShutdown() {
+	a.logger.Info("Agent is shutting down")
+
+	if err := a.logger.Sync(); err != nil {
+		a.logger.Sugar().Fatalf("failed to sync logger: %v", err)
+	}
 }
 
 // Cmd
