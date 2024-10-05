@@ -8,11 +8,12 @@ import (
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
+
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
 	"github.com/sudeeya/key-exchange/internal/pkg/middleware"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
-	"go.uber.org/zap"
 )
 
 type Trent struct {

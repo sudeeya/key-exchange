@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
+
 	"github.com/sudeeya/key-exchange/internal/agent"
 )
 
