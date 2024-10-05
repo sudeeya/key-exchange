@@ -1,13 +1,14 @@
 # Key Excahnge
-Key exchange is an educational implementation of the Wu-Lam key exchange protocol.
+Key exchange is an educational implementation of the Wu-Lam key exchange protocol. The Wu-Lam protocol is a cryptographic protocol designed to securely exchange keys between two parties with the help of a trusted third party (Trent).
 
 ## Getting Started
 To try the demonstration version, follow these steps:
 
-1. Generate Keys. Run the key generation task by executing the following command:
+1. Generate Keys. Run the RSA key generation task by executing the following command:
 ```
 task keygen-demo
 ```
+These keys will be required for message exchange in the Wu-Lam protocol.
 
 2. Run Tasks. Open separate terminals and run the tasks for Trent, Alice, and Bob. For example, to run Alice's task, use:
 ```
