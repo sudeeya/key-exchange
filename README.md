@@ -21,4 +21,4 @@ task --list
 ```
 
 ## Usage
-The tasks for Alice and Bob launch a Text User Interface (TUI). The first menu item allows the parties to generate a session key using the Wu-Lam protocol. After generating the key, Alice and Bob will be able to exchange messages securely.
+The tasks for Alice and Bob launch a Text User Interface (TUI). The first menu item allows the parties to generate a session key using the Wu-Lam protocol. Select item by pressing Enter and write ID of your interlocutor (Alice's ID is "alice", Bob's is "bob"). After generating the key, Alice and Bob will be able to exchange messages securely.
