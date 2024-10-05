@@ -21,6 +21,7 @@ func (rng RNG) GenerateNonce() ([]byte, error) {
 	if _, err := rand.Reader.Read(key); err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
 
@@ -29,6 +30,7 @@ func (rng RNG) GenerateIV() ([]byte, error) {
 	if _, err := rand.Reader.Read(key); err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }
 
@@ -37,5 +39,6 @@ func (rng RNG) GenerateKey(bytes int) ([]byte, error) {
 	if _, err := rand.Reader.Read(key); err != nil {
 		return nil, err
 	}
+
 	return key, nil
 }

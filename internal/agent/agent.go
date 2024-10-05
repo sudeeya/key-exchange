@@ -128,8 +128,8 @@ func initialKeys(cfg *config) (*keys, error) {
 	return &keys{
 		privateKey: privateKey,
 		trentKey:   trentKey,
-		agentKey:   make([]byte, 1),
-		sessionKey: make([]byte, 1),
+		agentKey:   make([]byte, 0),
+		sessionKey: make([]byte, 0),
 	}, nil
 }
 
@@ -297,7 +297,7 @@ func (a Agent) Run() {
 func (a *Agent) addRoutes() {
 	a.mux.Post(api.Step4Endpoint, step4Handler(a))
 	a.mux.Post(api.Step7Endpoint, step7Handler(a))
-	a.mux.Post(api.MessageEndpoint, MessageHandler(a))
+	a.mux.Post(api.MessageEndpoint, messageHandler(a))
 }
 
 // Cmd
@@ -341,11 +341,11 @@ func requestSessionKeyCmd(a *Agent, acceptor string) tea.Cmd {
 			return ErrorMsg(fmt.Errorf("step 2 status code is %d", rawResp2.StatusCode()))
 		}
 
-		infoJSON, err := json.Marshal(resp2.Certificate.Information)
+		info2JSON, err := json.Marshal(resp2.Certificate.Information)
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		ok := crypto.VerifyRSA(infoJSON, resp2.Certificate.Signature, a.keys.trentKey)
+		ok := crypto.VerifyRSA(info2JSON, resp2.Certificate.Signature, a.keys.trentKey)
 		if !ok {
 			return ErrorMsg(fmt.Errorf("signature verification failed"))
 		}
@@ -362,18 +362,18 @@ func requestSessionKeyCmd(a *Agent, acceptor string) tea.Cmd {
 			Initiator:      a.cfg.ID,
 			InitiatorNonce: initiatorNonce,
 		}
-		infoJSON3, err := json.Marshal(info3)
+		info3JSON, err := json.Marshal(info3)
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		ciphertext := crypto.EncryptRSA(infoJSON3, a.keys.agentKey)
+		ciphertext3 := crypto.EncryptRSA(info3JSON, a.keys.agentKey)
 
 		req3 := api.Request{
-			Ciphertext: ciphertext,
+			Ciphertext: ciphertext3,
 		}
 		acceptorAddr := a.cfg.AgentAddr
 		var resp4 api.Response
-		rawResp3, err := a.client.R().
+		rawResp4, err := a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(req3).
 			SetResult(&resp4).
@@ -381,14 +381,14 @@ func requestSessionKeyCmd(a *Agent, acceptor string) tea.Cmd {
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		if rawResp3.StatusCode() != http.StatusOK {
-			return ErrorMsg(fmt.Errorf("step 4 status code is %d", rawResp3.StatusCode()))
+		if rawResp4.StatusCode() != http.StatusOK {
+			return ErrorMsg(fmt.Errorf("step 4 status code is %d", rawResp4.StatusCode()))
 		}
 
-		respJSON := crypto.DecryptRSA(resp4.Ciphertext, a.keys.privateKey)
+		resp4JSON := crypto.DecryptRSA(resp4.Ciphertext, a.keys.privateKey)
 
 		var resp api.Response
-		if err := json.Unmarshal(respJSON, &resp); err != nil {
+		if err := json.Unmarshal(resp4JSON, &resp); err != nil {
 			return ErrorMsg(err)
 		}
 
@@ -404,15 +404,15 @@ func requestSessionKeyCmd(a *Agent, acceptor string) tea.Cmd {
 			IV:         iv,
 			Ciphertext: ciphertext7,
 		}
-		rawResp7, err := a.client.R().
+		rawResp, err := a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetBody(msg).
 			Post(httpPrefix + acceptorAddr + api.Step7Endpoint)
 		if err != nil {
 			return ErrorMsg(err)
 		}
-		if rawResp7.StatusCode() != http.StatusOK {
-			return ErrorMsg(fmt.Errorf("step 7 status code is %d", rawResp7.StatusCode()))
+		if rawResp.StatusCode() != http.StatusOK {
+			return ErrorMsg(fmt.Errorf("step 7 status code is %d", rawResp.StatusCode()))
 		}
 
 		a.tui.session = acceptor
