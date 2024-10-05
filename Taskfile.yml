@@ -36,3 +36,19 @@ tasks:
     desc: Run Bob.
     cmds:
       - go run cmd/agent/main.go -e env/bob.env
+
+  logs-delete:
+    desc: Delete Trent, Alice and Bob's logs.
+    cmds:
+      - |
+        if [[ -f logs/alice.log ]]; then 
+          rm logs/alice.log 
+        fi
+      - |
+        if [[ -f logs/bob.log ]]; then 
+          rm logs/bob.log 
+        fi
+      - |
+        if [[ -f logs/trent.log ]]; then 
+          rm logs/trent.log 
+        fi
