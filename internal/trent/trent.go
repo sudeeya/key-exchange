@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
+	"github.com/sudeeya/key-exchange/internal/pkg/middleware"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 	"go.uber.org/zap"
@@ -59,8 +59,9 @@ func NewTrent() *Trent {
 
 	logger.Info("Initializing router")
 	mux := chi.NewRouter()
+
 	logger.Info("Initializing middleware")
-	mux.Use(middleware.Logger)
+	mux.Use(middleware.WithLogging(logger))
 
 	logger.Info("Initializing RNG")
 	rng := rng.NewRNG()

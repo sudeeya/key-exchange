@@ -17,6 +17,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/sudeeya/key-exchange/internal/pkg/api"
 	"github.com/sudeeya/key-exchange/internal/pkg/crypto"
+	"github.com/sudeeya/key-exchange/internal/pkg/middleware"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
 	"go.uber.org/zap"
@@ -98,6 +99,9 @@ func NewAgent() *Agent {
 
 	logger.Info("Initializing router")
 	mux := chi.NewRouter()
+
+	logger.Info("Initializing middleware")
+	mux.Use(middleware.WithLogging(logger))
 
 	logger.Info("Initializing http client")
 	client := resty.New()
