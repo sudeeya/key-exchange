@@ -16,6 +16,7 @@ import (
 	"github.com/sudeeya/key-exchange/internal/pkg/crypto"
 	"github.com/sudeeya/key-exchange/internal/pkg/pem"
 	"github.com/sudeeya/key-exchange/internal/pkg/rng"
+	"go.uber.org/zap"
 )
 
 const (
@@ -43,6 +44,7 @@ var (
 
 type Agent struct {
 	cfg    *config
+	logger *zap.Logger
 	tui    *tui
 	keys   *keys
 	client *resty.Client
@@ -76,15 +78,27 @@ func NewAgent() *Agent {
 		log.Fatal(err)
 	}
 
-	keys, err := initialKeys(cfg)
+	loggerCfg := zap.NewDevelopmentConfig()
+	loggerCfg.OutputPaths = []string{
+		cfg.LogFile,
+	}
+	logger, err := loggerCfg.Build()
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	logger.Info("Initializing keys")
+	keys, err := initialKeys(cfg)
+	if err != nil {
+		logger.Fatal(err.Error())
+	}
+
+	logger.Info("Initializing router")
 	mux := chi.NewRouter()
 
 	return &Agent{
 		cfg:    cfg,
+		logger: logger,
 		tui:    initialTUI(),
 		keys:   keys,
 		client: resty.New(),
@@ -280,17 +294,19 @@ func (a Agent) View() string {
 }
 
 func (a Agent) Run() {
+	a.logger.Info("Initializing endpoints")
 	a.addRoutes()
 
+	a.logger.Info("Agent is running")
 	go func() {
 		if err := http.ListenAndServe(a.cfg.Addr, a.mux); err != nil {
-			log.Fatal(err)
+			a.logger.Fatal(err.Error())
 		}
 	}()
 
 	prog := tea.NewProgram(a, tea.WithAltScreen())
 	if _, err := prog.Run(); err != nil {
-		log.Fatal(err)
+		a.logger.Fatal(err.Error())
 	}
 }
 

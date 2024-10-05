@@ -11,6 +11,8 @@ type config struct {
 
 	AgentIDs        []string `env:"AGENT_IDS,required"`
 	AgentPublicKeys []string `env:"AGENT_PUBLIC_KEYS,required"`
+
+	LogFile string `env:"LOG_FILE,required"`
 }
 
 func newConfig() (*config, error) {

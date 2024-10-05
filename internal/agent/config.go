@@ -15,6 +15,8 @@ type config struct {
 
 	AgentID   string `env:"AGENT_ID,required"`
 	AgentAddr string `env:"AGENT_ADDR,required"`
+
+	LogFile string `env:"LOG_FILE,required"`
 }
 
 func newConfig() (*config, error) {

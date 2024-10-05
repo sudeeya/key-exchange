@@ -28,7 +28,11 @@ func NewTrent() *Trent {
 		log.Fatal(err)
 	}
 
-	logger, err := zap.NewDevelopment()
+	loggerCfg := zap.NewDevelopmentConfig()
+	loggerCfg.OutputPaths = []string{
+		cfg.LogFile,
+	}
+	logger, err := loggerCfg.Build()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,7 +79,7 @@ func (t Trent) Run() {
 
 	t.logger.Info("Server is running")
 	if err := http.ListenAndServe(t.cfg.Addr, t.mux); err != nil {
-		log.Fatal(err)
+		t.logger.Fatal(err.Error())
 	}
 }
 
