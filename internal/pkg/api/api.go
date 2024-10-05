@@ -9,15 +9,15 @@ const (
 )
 
 type Request struct {
-	Initiator  string `json:"initiator"`
-	Acceptor   string `json:"acceptor"`
-	Ciphertext []byte `json:"ciphertext"`
+	Initiator  string `json:"initiator,omitempty"`
+	Acceptor   string `json:"acceptor,omitempty"`
+	Ciphertext []byte `json:"ciphertext,omitempty"`
 }
 
 type Response struct {
-	Certificate   Cert   `json:"certificate"`
-	Ciphertext    []byte `json:"ciphertext"`
-	AcceptorNonce []byte `json:"acceptor_nonce"`
+	Certificate   Cert   `json:"certificate,omitempty"`
+	Ciphertext    []byte `json:"ciphertext,omitempty"`
+	AcceptorNonce []byte `json:"acceptor_nonce,omitempty"`
 }
 
 type Cert struct {
@@ -26,12 +26,12 @@ type Cert struct {
 }
 
 type Info struct {
-	Initiator      string `json:"initiator"`
-	Acceptor       string `json:"acceptor"`
-	InitiatorNonce []byte `json:"initiator_nonce"`
-	InitiatorKey   []byte `json:"initiator_key"`
-	AcceptorKey    []byte `json:"acceptor_key"`
-	SessionKey     []byte `json:"session_key"`
+	Initiator      string `json:"initiator,omitempty"`
+	Acceptor       string `json:"acceptor,omitempty"`
+	InitiatorNonce []byte `json:"initiator_nonce,omitempty"`
+	InitiatorKey   []byte `json:"initiator_key,omitempty"`
+	AcceptorKey    []byte `json:"acceptor_key,omitempty"`
+	SessionKey     []byte `json:"session_key,omitempty"`
 }
 
 type Message struct {

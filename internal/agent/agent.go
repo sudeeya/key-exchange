@@ -96,12 +96,17 @@ func NewAgent() *Agent {
 	logger.Info("Initializing router")
 	mux := chi.NewRouter()
 
+	logger.Info("Initializing http client")
+	client := resty.New()
+	client.SetLogger(logger.Sugar())
+	client.SetDebug(true)
+
 	return &Agent{
 		cfg:    cfg,
 		logger: logger,
 		tui:    initialTUI(),
 		keys:   keys,
-		client: resty.New(),
+		client: client,
 		mux:    mux,
 		rng:    rng.NewRNG(),
 	}
