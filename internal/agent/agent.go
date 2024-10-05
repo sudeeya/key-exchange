@@ -314,7 +314,7 @@ func (a Agent) Run() {
 	a.logger.Info("Agent is running")
 	go func() {
 		<-sigCh
-		a.logger.Info("Trent is shutting down")
+		a.logger.Info("Agent is shutting down")
 		a.Shutdown()
 	}()
 
