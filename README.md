@@ -1,4 +1,4 @@
-# Key Excahnge
+# Key Exchange
 Key exchange is an educational implementation of the Wu-Lam key exchange protocol. The Wu-Lam protocol is a cryptographic protocol designed to securely exchange keys between two parties with the help of a trusted third party (Trent).
 
 ## Getting Started
